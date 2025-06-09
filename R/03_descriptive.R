@@ -29,6 +29,42 @@ left_join(rodent_data, trap_data) %>%
             median_n = median(n),
             IQR_n = IQR(n))
 
+# Rarefaction based analysis
+rodent_full <- rodent_data %>%
+  left_join(trap_data, by = c("village", "visit", "trap_uid")) %>%
+  mutate(site_id = paste(village, grid_number, visit, sep = "_"))
+
+species_abundance <- rodent_full %>%
+  count(site_id, species) %>%
+  pivot_wider(names_from = species, values_from = n, values_fill = 0) %>%
+  arrange(site_id) %>%
+  column_to_rownames("site_id")
+
+latlong <-  rodent_full %>%
+  vect(geom = c("trap_easting", "trap_northing"), crs = SL_UTM) %>%
+  project(y = default_CRS)
+
+site_covariates <- rodent_full %>%
+  mutate(x = crds(latlong)[ , 1],
+         y = crds(latlong)[, 2]) %>%
+  group_by(site_id) %>%
+  summarise(village = first(village),
+            grid_number = first(grid_number),
+            visit = first(visit),
+            landuse = first(landuse),
+            x = mean(x, na.rm = TRUE),
+            y = mean(y, na.rm = TRUE)) %>%
+  arrange(site_id) %>%
+  column_to_rownames("site_id")
+
+mob_obj <- make_mob_in(species_abundance, site_covariates, coord_names = c("x", "y"), latlong = TRUE)
+
+div_stats <- get_delta_stats(mob_in = mob_obj, env_var = "landuse", type = "discrete")
+
+IBR_summary <- div_stats$S_df %>%
+  filter(test == "SAD", sample == "indiv", effort == 10) %>%
+  select(env, S = effect, low_CI = low_effect, median = med_effect, high_CI = high_effect)
+
 # Number of antibody positive rodents
 rodent_data %>%
   filter(interpretation == "Positive") %>%

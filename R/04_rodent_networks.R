@@ -57,24 +57,53 @@ write_rds(prepared_data, here("data", "processed_data", "data_for_abundance.rds"
 
 # Produce networks with unobserved individuals ----------------------------
 
-# This produces very large networks, we supplement the observed individuals with ~ 1000 unobserved individuals resulting in ~220,000 unobserved edges
+# This produces very large networks, we supplement the observed individuals with unobserved individuals
 # The produced network is ~1.6 GB
-
-if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.rds"))) {
+# This method uses a circular buffer around the trapped location
+if(file.exists(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))) {
   
-  expanded_assemblages <- read_rds(here("data", "processed_data", "expanded_assemblages_2023-06-19.rds"))
+  expanded_assemblages <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
   
 } else {
   
-  produce_assemblages <- function(rodent_data = landuse_visit_rodents, distance = 30) {
+  source(here("R", "99_rodent_ranges.R"))
+  
+  rodent_home_range_radii <- rodent_ranges %>%
+    mutate(Genus = str_split(Species, pattern = " ", simplify = TRUE)[, 1]) %>%
+    group_by(Genus, Species) %>%
+    summarise(median_range_radius = median(Home_Range_radius, na.rm = TRUE),
+              min_range_radius = min(Home_Range_radius, na.rm = TRUE),
+              max_range_radius = max(Home_Range_radius, na.rm = TRUE))
+  
+  rodent_home_range_radii_genus <- rodent_ranges %>%
+    mutate(Genus = str_split(Species, pattern = " ", simplify = TRUE)[, 1]) %>%
+    group_by(Genus) %>%
+    summarise(median_range_radius = median(Home_Range_radius, na.rm = TRUE),
+              min_range_radius = min(Home_Range_radius, na.rm = TRUE),
+              max_range_radius = max(Home_Range_radius, na.rm = TRUE))
+  
+  rodent_home_range_radii <- bind_rows(rodent_home_range_radii, rodent_home_range_radii_genus)
+  
+  units(rodent_home_range_radii$median_range_radius) <- "meters"
+  units(rodent_home_range_radii$min_range_radius) <- "meters"
+  units(rodent_home_range_radii$max_range_radius) <- "meters"
+  
+  produce_assemblages <- function(rodent_data = landuse_visit_rodents, distance = rodent_home_range_radii) {
     
-    # Define distance as meters
-    units(distance) <- "meters"
-    
-    # Produce a buffer around each individual to create their range
+    # Produce a buffer around each individual to create their range based on their species home range if known
     individual_buffers <- rodent_data %>%
-      select(rodent_uid, species, village, visit, grid) %>%
-      st_buffer(dist = distance) %>%
+      select(rodent_uid, genus, species, village, visit, grid) %>%
+      mutate(genus = str_to_sentence(genus)) %>%
+      left_join(distance, by = c("genus" = "Genus", "species" = "Species")) %>%
+      mutate(across(ends_with("radius"), 
+                    ~ if_else(is.na(.x),
+                              # Replace missing values by joining genus-level median values
+                              rodent_home_range_radii[[cur_column()]][match(genus, rodent_home_range_radii$Genus)],
+                              .x))) %>%
+      # set those without speces or genus level data to 17m
+      mutate(median_range_radius = case_when(is.na(median_range_radius) ~ units::as_units(17, "meters"),
+                                             TRUE ~  median_range_radius)) %>%
+      mutate(buffered_area = st_buffer(geometry, dist = median_range_radius)) %>%
       group_by(rodent_uid) %>%
       group_split()
     
@@ -95,16 +124,24 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
       # Allocate an ID to use for reference
       reference_id <- unique(y$rodent_uid)
       
+      # Change active geom to the buffered area for the overlap detection
+      st_geometry(y) <- "buffered_area"
+      individual_buffers <- map(individual_buffers, ~ {
+        st_geometry(.) <- "buffered_area"
+        .
+      })
+      
       # Join the reference rodent to others that were detected in their range
       contact <- st_join(y %>%
-                             select(rodent_uid, geometry),
-                           bind_rows(individual_buffers) %>%
-                             filter(!rodent_uid %in% reference_id &
-                                      village %in% reference_village &
-                                      visit %in% reference_visit) %>%
-                             rename(to_id = rodent_uid,
-                                    to_species = species), 
-                           .predicate = st_overlaps) %>%
+                           select(rodent_uid, buffered_area),
+                         bind_rows(individual_buffers) %>%
+                           filter(!rodent_uid %in% reference_id &
+                                    village %in% reference_village &
+                                    visit %in% reference_visit) %>%
+                           select(to_id = rodent_uid,
+                                  to_species = species,
+                                  everything()), 
+                         .predicate = st_overlaps) %>%
         mutate(from_id = reference_id,
                from_species = reference_species) %>%
         select(any_of(x = c("from_id", "from_species", "to_id", "to_species", "village", "visit", "grid")))
@@ -122,7 +159,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
       } else {
         
         contact <- tibble(contact) %>%
-          select(-geometry)
+          select(-buffered_area)
         
       }
       
@@ -176,7 +213,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
   }
   
   assemblages <- lapply(landuse_visit_rodents, function(x) {
-    produce_assemblages(x, distance = 30)
+    produce_assemblages(x, distance = rodent_home_range_radii)
   })
   
   # Add further vertex attributes
@@ -200,7 +237,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
   }
   
   # Consistent colours for species
-  species_palette_df <- as_tibble(bind_graphs(lapply(assemblages, function(x) x$graph))) %>%
+  species_palette_df <- as_tibble(do.call(bind_graphs, lapply(assemblages, function(x) as_tbl_graph(x$graph)))) %>%
     select(Species) %>%
     distinct(Species) %>%
     arrange(Species)
@@ -213,7 +250,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
   write_rds(nodelists, here("data", "temp", "network_nodelist.rds"))
   
   # To plot these networks uncomment the below script
-  #source(here("R", "07_plot_networks.R"))
+  # source(here("R", "07_plot_networks.R"))
   
   # Add unobserved individuals ----------------------------------------------
   # The number of unobserved individuals is derived from the estimating abundance script 06_estimating_abundance.R
@@ -230,7 +267,8 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
   formatted_abundance <- estimated_abundance %>%
     pivot_longer(cols = contains("_median"), names_to = "Species", values_to = "Estimated") %>%
     mutate(Species = str_to_sentence(str_replace(str_remove_all(Species, "_median"), "_", " ")),
-           Species = fct(Species, levels = c(levels(included_species), "Other")))
+           Species = fct(Species, levels = c(levels(included_species), "Other"))) %>%
+    drop_na(Estimated)
   
   expanded_assemblages <- list()
   expanded_assemblages$nodelist <- list()
@@ -328,7 +366,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2023-06-19.r
     
   }
   
-  write_rds(expanded_assemblages, here("data", "processed_data", "expanded_assemblages_2023-06-19.rds"))
+  write_rds(expanded_assemblages, here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
   
 }
 
@@ -399,7 +437,7 @@ final_model <- list(final_model = rodent_models_summary$homophily,
 # Save models -------------------------------------------------------------
 # The final model has been made available in an OSF repository
 
-write_rds(rodent_network, here("data", "temp", "rodent_networks_2025-01-28.rds"))
-write_rds(rodent_models, here("data", "temp", "rodent_models_2025-01-28.rds"))
-write_rds(rodent_models_summary, here("data", "temp", "rodent_models_summary_2025-01-28.rds"))
-write_rds(final_model, here("data", "temp", "final_model_2025-01-28.rds"))
+write_rds(rodent_network, here("data", "temp", "rodent_networks_2025-06-05.rds"))
+write_rds(rodent_models, here("data", "temp", "rodent_models_2025-06-05.rds"))
+write_rds(rodent_models_summary, here("data", "temp", "rodent_models_summary_2025-06-05.rds"))
+write_rds(final_model, here("data", "temp", "final_model_2025-06-05.rds"))

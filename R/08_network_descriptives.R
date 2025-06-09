@@ -560,6 +560,8 @@ within_species_degree <- negative_individuals %>%
   group_by(species)
 
 ab_status_degree_test <- within_species_degree %>%
+  filter(interpretation %in% c("Positive", "Negative")) %>%
+  mutate(interpretation = factor(interpretation, levels = c("Positive", "Negative"))) %>%
   group_split() %>%
   lapply(., function(x) try(wilcox.test(degree ~ interpretation, data = x, exact = FALSE)))
 

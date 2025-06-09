@@ -1,18 +1,16 @@
 source(here::here("R", "00_setup.R"))
 source(here("R", "01_load_data.R"))
-source(here("R", "02_clean_data.R"))
-source(here("R", "03_descriptive.R"))
+#remotes::install_github("SHoeks/HomeRange", subdir='pkg')
+library(HomeRange)
 
-rodent_species <- unique_rodents %>%
-  filter(!str_detect(species, "spp")) %>%
+rodent_species <- rodent_data %>%
   distinct(species) %>%
-  mutate(species = str_to_sentence(str_replace_all(species, "_", " "))) %>%
   pull(species)
 
-rodent_genera <- unique_rodents %>%
+rodent_genera <- rodent_data %>%
   distinct(species) %>%
-  filter(!species %in% c("rattus_rattus", "mus_musculus", "mus_setulosus", "lemniscomys_striatus", "mastomys_natalensis")) %>%
-  mutate(genus = str_to_sentence(str_split(species, "_", simplify = TRUE)[, 1])) %>%
+  filter(!species %in% c("Rattus rattus", "Mus musculus", "Mus setulosus", "Lemniscomys striatus", "Mastomys natalensis")) %>%
+  mutate(genus = str_to_sentence(str_split(species, " ", simplify = TRUE)[, 1])) %>%
   pull(genus)
 
 # Load HomeRange data
