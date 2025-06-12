@@ -2,7 +2,9 @@ source(here::here("R", "00_setup.R"))
 
 rodent_models_summary <- read_rds(here("data", "temp", "rodent_models_summary_2025-06-05.rds"))
 rodent_network <- read_rds(here("data", "temp", "rodent_networks_2025-06-05.rds"))
-rodent_data <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
+rodent_network_data <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
+
+source(here("R", "01_load_data.R"))
 
 final_model <- read_rds(here("data", "temp", "final_model_2025-06-05.rds"))
 final_model_summary <- final_model$final_model
@@ -29,18 +31,18 @@ for(i in 1:length(homophily_term)) {
     str_replace(., "edges", "Edges")
   
   coeff$Network = i
-  coeff$Visit = unique(rodent_data$nodelist[[i]]$Visit)
-  coeff$Landuse = unique(rodent_data$nodelist[[i]]$Landuse)
-  coeff$`Observed M. natalensis` = rodent_data$nodelist[[i]] %>%
+  coeff$Visit = unique(rodent_network_data$nodelist[[i]]$Visit)
+  coeff$Landuse = unique(rodent_network_data$nodelist[[i]]$Landuse)
+  coeff$`Observed M. natalensis` = rodent_network_data$nodelist[[i]] %>%
     filter(Species == "Mastomys natalensis" & Observed == TRUE) %>%
     nrow()
-  coeff$`Observed all species` =  rodent_data$nodelist[[i]] %>%
+  coeff$`Observed all species` =  rodent_network_data$nodelist[[i]] %>%
     filter(Observed == TRUE) %>%
     nrow()
-  coeff$`Unobserved M. natalensis` = rodent_data$nodelist[[i]] %>%
+  coeff$`Unobserved M. natalensis` = rodent_network_data$nodelist[[i]] %>%
     filter(Species == "Mastomys natalensis" & Observed == FALSE) %>%
     nrow()
-  coeff$N = nrow(rodent_data$nodelist[[i]])
+  coeff$N = nrow(rodent_network_data$nodelist[[i]])
   
   coefficients[[i]] <- coeff %>%
     tibble() %>%
@@ -49,16 +51,16 @@ for(i in 1:length(homophily_term)) {
   } else {
     
     coefficients[[i]] <- tibble(Network = i,
-                                Visit = unique(rodent_data$nodelist[[i]]$Visit),
-                                Landuse = unique(rodent_data$nodelist[[i]]$Landuse),
-                                `Observed M. natalensis` = rodent_data$nodelist[[i]] %>%
+                                Visit = unique(rodent_network_data$nodelist[[i]]$Visit),
+                                Landuse = unique(rodent_network_data$nodelist[[i]]$Landuse),
+                                `Observed M. natalensis` = rodent_network_data$nodelist[[i]] %>%
                                   filter(Species == "Mastomys natalensis" & Observed == TRUE) %>%
                                   nrow(),
-                                N = nrow(rodent_data$nodelist[[i]]),
-                                `Observed all species` =  rodent_data$nodelist[[i]] %>%
+                                N = nrow(rodent_network_data$nodelist[[i]]),
+                                `Observed all species` =  rodent_network_data$nodelist[[i]] %>%
                                   filter(Observed == TRUE) %>%
                                   nrow(),
-                                `Unobserved M. natalensis` = rodent_data$nodelist[[i]] %>%
+                                `Unobserved M. natalensis` = rodent_network_data$nodelist[[i]] %>%
                                   filter(Species == "Mastomys natalensis" & Observed == FALSE) %>%
                                   nrow(),
                                 Coefficient = NA,
@@ -88,10 +90,6 @@ included_models <- bind_rows(coefficients) %>%
   distinct(Network)
   
 
-# Speed up processing by removing networks
-rm(rodent_data)
-#rm(final_model)
-gc()
 # Meta-analysis of edges --------------------------------------------------
 
 edges <- coefficients_df %>%

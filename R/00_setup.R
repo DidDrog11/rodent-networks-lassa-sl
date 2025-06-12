@@ -1,7 +1,8 @@
 if (!require("pacman")) install.packages("pacman")
 
 pkgs =
-  c("broom",
+  c("bayesplot",
+    "broom",
     "brms",
     "colorspace",
     "cowplot",
@@ -31,6 +32,7 @@ pkgs =
     "sf",
     "statnet",
     "terra",
+    "tidybayes",
     "tidyfast",
     "tidygraph",
     "tidyterra",

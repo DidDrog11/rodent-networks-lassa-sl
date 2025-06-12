@@ -117,12 +117,19 @@ node_level_descriptives %>%
   
 node_level_descriptives %>% 
   group_by(landuse) %>%
-  summarise(mean_degree = mean(degree)) %>%
+  summarise(mean_degree = mean(degree),
+            sd_degree = sd(degree)) %>%
   arrange(-mean_degree)
 
 node_level_descriptives %>% 
   group_by(landuse) %>%
-  summarise(mean_betweenness = mean(betweenness)) %>%
+  summarise(max_degree = max(degree)) %>%
+  arrange(-max_degree)
+
+node_level_descriptives %>% 
+  group_by(landuse) %>%
+  summarise(mean_betweenness = mean(betweenness),
+            sd_betweenness = sd(betweenness)) %>%
   arrange(-mean_betweenness)
 
 node_level_descriptives %>% 
@@ -578,3 +585,4 @@ ab_status_betweenness_test <- within_species_degree %>%
 
 names(ab_status_betweenness_test) <- group_keys(within_species_degree) %>% 
   pull(species)
+

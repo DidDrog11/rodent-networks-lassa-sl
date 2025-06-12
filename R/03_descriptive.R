@@ -343,3 +343,4 @@ landuse_summary <- landuse_post_samples %>%
     CI_low_OR = exp(CI_low_log_odds),
     CI_high_OR = exp(CI_high_log_odds)
   )
+
