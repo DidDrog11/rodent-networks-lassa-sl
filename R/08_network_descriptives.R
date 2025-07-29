@@ -24,6 +24,11 @@ rodent_net_descriptives <- lapply(rodent_network, function(x) {
   observed_subgraph <- x %s% which(observed == TRUE)
   observed_igraph <- asIgraph(observed_subgraph)
   
+  # NEW: Calculate modularity using walktrap community detection
+  # This measures how well the network separates into distinct clusters (modules)
+  communities_wt <- igraph::cluster_walktrap(observed_igraph)
+  modularity_score <- igraph::modularity(communities_wt)
+  
   network_descriptives <- tibble(nodes = network.size(x),
                                  observed_nodes = table(x%v%"Observed")["TRUE"],
                                  unobserved_nodes = table(x%v%"Observed")["FALSE"],
@@ -37,6 +42,7 @@ rodent_net_descriptives <- lapply(rodent_network, function(x) {
                                  sd_degree = sd(igraph::degree(observed_igraph, mode = "out")),
                                  mean_betweenness = mean(estimate_betweenness(observed_igraph, cutoff = -1)),
                                  sd_betweenness = sd(estimate_betweenness(observed_igraph, cutoff = -1)),
+                                 modularity = modularity_score,
                                  landuse = unique(x%v%"Landuse"),
                                  n_species = length(unique(observed_subgraph%v%"Species")),
                                  density = edge_density(observed_igraph),
@@ -70,7 +76,9 @@ network_level_descriptives %>%
             edges = sum(non_missing_edges),
             max_degree = max(mean_degree),
             max_betweenness = max(mean_betweenness),
-            max_density = max(density_observed))
+            max_density = max(density_observed),
+            mean_modularity = mean(modularity, na.rm = TRUE),
+            sd_modularity = sd(modularity, na.rm = TRUE))
 
 
 # Network descriptive figures ---------------------------------------------
