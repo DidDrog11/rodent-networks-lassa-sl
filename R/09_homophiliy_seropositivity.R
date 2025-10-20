@@ -1,8 +1,8 @@
 source(here::here("R", "00_setup.R"))
 source(here::here("R", "01_load_data.R"))
 
-rodent_models <- read_rds(here("data", "temp", "rodent_models_2025-06-05.rds"))
-included_networks <- c(11, 12, 13, 14, 15, 21, 23, 24, 25, 26, 29)
+rodent_models <- read_rds(here("data", "temp", "rodent_models_2025-10-16.rds"))
+included_networks <- c(11, 12, 13, 14, 15, 21, 23, 24, 25, 26, 29) # same as included models in 05_interpreting_network_models.R
 rodent_homophily_models <- rodent_models$homophily[included_networks]
 rm(rodent_models)
 gc()
@@ -103,7 +103,7 @@ homophily_degree_int_positivity <- brm(
   family = bernoulli(),
   data = mnat_homophily_all_df,
   cores = 4, chains = 4,
-  control = list(adapt_delta = 0.95)
+  control = list(adapt_delta = 0.99)
 )
 
 loo1 <- loo(homophily_positivity, cores = 8)

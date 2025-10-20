@@ -32,7 +32,7 @@ rodent_ranges <- HomeRangeData %>%
 n_species_hr <- rodent_ranges %>%
   filter(match == "Species") %>%
   distinct(Species)
-# 4 species have home ranges, only two of these include data from Africa, for m natalensis all data is originated from Tanzania
+# 5 species have home ranges, only two of these include data from Africa, for m natalensis all data is originated from Tanzania
 
 s_1 <- rodent_ranges %>%
   ggplot() +

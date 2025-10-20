@@ -12,6 +12,7 @@ rodent_data <- read_csv(here("data", "input", "rodent_data.csv")) %>%
               select(rodent_uid, result, interpretation, valid)) %>%
   mutate(village = factor(village, levels = village_order, labels = str_to_sentence(village_order)),
          species = factor(clean_names, levels = str_replace_all(str_to_lower(all_species_order), " ", "_"), labels = all_species_order),
+         genus = str_to_lower(str_split(species, pattern = " ", simplify = TRUE)[, 1]),
          # convert trap uid to first night as will be grouped
          trap_uid = paste0(str_split(trap_uid, pattern = "_", simplify = TRUE)[, 1], "_",
                            str_split(trap_uid, pattern = "_", simplify = TRUE)[, 2], "_",

@@ -177,14 +177,15 @@ odds_seropositivity <- ggplot() +
   labs(x = expression('Odds Ratio of Seropositivity vs.'~italic('Mastomys natalensis')~'(Reference)'),
        y = "Species") +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
+  theme(plot.background = element_rect(fill = "white", colour = NA),
+        plot.title = element_text(hjust = 0.5),
         axis.text.x = element_text(size = 12),
         axis.text.y = element_text(size = 12, face = "italic")) +
   scale_x_continuous(breaks = c(0.5, 1, 2, 5)) +
   geom_vline(xintercept = 1, linetype = "dashed") + # Reference OR of 1
   coord_cartesian(xlim = c(0, 6))
 
-save_plot(filename = here("output", "figures", "Figure_2.png"), plot = odds_seropositivity, base_width = 7)
+save_plot(filename = here("output", "figures", "Figure_2.png"), plot = odds_seropositivity, base_width = 7, bg = "white")
 
 # Add ORs to table
 table_1_updated <- table_1_df %>%

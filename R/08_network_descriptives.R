@@ -24,8 +24,6 @@ rodent_net_descriptives <- lapply(rodent_network, function(x) {
   observed_subgraph <- x %s% which(observed == TRUE)
   observed_igraph <- asIgraph(observed_subgraph)
   
-  # NEW: Calculate modularity using walktrap community detection
-  # This measures how well the network separates into distinct clusters (modules)
   communities_wt <- igraph::cluster_walktrap(observed_igraph)
   modularity_score <- igraph::modularity(communities_wt)
   
@@ -80,6 +78,19 @@ network_level_descriptives %>%
             mean_modularity = mean(modularity, na.rm = TRUE),
             sd_modularity = sd(modularity, na.rm = TRUE))
 
+library(rstatix)
+
+# Test for differences in mean degree across land use types
+kruskal_test(mean_degree ~ landuse, data = network_level_descriptives)
+dunn_test(mean_degree ~ landuse, data = network_level_descriptives, p.adjust.method = "bonferroni")
+
+# Test for differences in mean betweenness across land use types
+kruskal_test(mean_betweenness ~ landuse, data = network_level_descriptives)
+dunn_test(mean_betweenness ~ landuse, data = network_level_descriptives, p.adjust.method = "bonferroni")
+
+# Test for differences in modularity across land use types
+kruskal_test(modularity ~ landuse, data = network_level_descriptives)
+dunn_test(modularity ~ landuse, data = network_level_descriptives, p.adjust.method = "bonferroni")
 
 # Network descriptive figures ---------------------------------------------
 
@@ -117,7 +128,6 @@ node_level_descriptives <- lapply(rodent_net_descriptives, function(x) x$node_le
 
 # Node level descriptives -------------------------------------------------
 
-
 node_level_descriptives %>% 
   group_by(network_number, landuse, visit) %>%
   summarise(max_degree = max(degree)) %>%
@@ -136,8 +146,8 @@ node_level_descriptives %>%
 
 node_level_descriptives %>% 
   group_by(landuse) %>%
-  summarise(mean_betweenness = mean(betweenness),
-            sd_betweenness = sd(betweenness)) %>%
+  summarise(mean_betweenness = mean(betweenness, na.rm = TRUE),
+            sd_betweenness = sd(betweenness, na.rm = TRUE)) %>%
   arrange(-mean_betweenness)
 
 node_level_descriptives %>% 
@@ -153,6 +163,39 @@ node_level_descriptives %>%
             median_betweenness = median(betweenness)) %>%
   arrange(-max_degree)
 
+species_network_summary <- node_level_descriptives %>%
+  group_by(network_number, landuse, species) %>%
+  summarise(mean_species_degree = mean(degree), .groups = "drop")
+
+species_network_summary %>%
+  filter(species == "Mastomys natalensis") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
+
+species_network_summary %>%
+  filter(species == "Rattus rattus") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
+
+species_network_summary %>%
+  filter(species == "Mus musculus") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
+
+species_network_summary %>%
+  filter(species == "Praomys rostratus") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
+
+species_network_summary %>%
+  filter(species == "Crocidura olivieri") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
+
+species_network_summary %>%
+  filter(species == "Lophuromys sikapusi") %>%
+  droplevels() %>%
+  wilcox_test(mean_species_degree ~ landuse, p.adjust.method = "bonferroni")
 
 # Figure 3 ----------------------------------------------------------------
 
@@ -351,6 +394,7 @@ plot_species_degree <- node_level_descriptives %>%
   theme_bw()
   
 # Plot networks -----------------------------------------------------------
+library(scico)
 
 network_plots <- function(network, fig_label) {
 
@@ -575,22 +619,25 @@ within_species_degree <- negative_individuals %>%
   group_by(species)
 
 ab_status_degree_test <- within_species_degree %>%
+  drop_na(species) %>%
   filter(interpretation %in% c("Positive", "Negative")) %>%
   mutate(interpretation = factor(interpretation, levels = c("Positive", "Negative"))) %>%
   group_split() %>%
   lapply(., function(x) try(wilcox.test(degree ~ interpretation, data = x, exact = FALSE)))
 
 names(ab_status_degree_test) <- group_keys(within_species_degree) %>% 
+  drop_na(species) %>%
   pull(species)
 
 # Betweenness comparison
 wilcox.test(betweenness ~ interpretation, data = compare_pos_neg, correct = TRUE)
 
-
 ab_status_betweenness_test <- within_species_degree %>%
+  drop_na(species) %>%
   group_split() %>%
   lapply(., function(x) try(wilcox.test(betweenness ~ interpretation, data = x, exact = FALSE)))
 
 names(ab_status_betweenness_test) <- group_keys(within_species_degree) %>% 
+  drop_na(species) %>%
   pull(species)
 

@@ -1,12 +1,12 @@
 source(here::here("R", "00_setup.R"))
 
-rodent_models_summary <- read_rds(here("data", "temp", "rodent_models_summary_2025-06-05.rds"))
-rodent_network <- read_rds(here("data", "temp", "rodent_networks_2025-06-05.rds"))
-rodent_network_data <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
+rodent_models_summary <- read_rds(here("data", "temp", "rodent_models_summary_2025-10-16.rds"))
+rodent_network <- read_rds(here("data", "temp", "rodent_networks_2025-10-16.rds"))
+rodent_network_data <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-10-16.rds"))
 
 source(here("R", "01_load_data.R"))
 
-final_model <- read_rds(here("data", "temp", "final_model_2025-06-05.rds"))
+final_model <- read_rds(here("data", "temp", "final_model_2025-10-16.rds"))
 final_model_summary <- final_model$final_model
 `%s%` <- network::`%s%`
 

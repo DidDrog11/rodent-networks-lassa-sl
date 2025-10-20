@@ -60,9 +60,9 @@ write_rds(prepared_data, here("data", "processed_data", "data_for_abundance.rds"
 # This produces very large networks, we supplement the observed individuals with unobserved individuals
 # The produced network is ~1.6 GB
 # This method uses a circular buffer around the trapped location
-if(file.exists(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))) {
+if(file.exists(here("data", "processed_data", "expanded_assemblages_2025-10-16.rds"))) {
   
-  expanded_assemblages <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
+  expanded_assemblages <- read_rds(here("data", "processed_data", "expanded_assemblages_2025-10-16.rds"))
   
 } else {
   
@@ -95,13 +95,15 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2025-06-04.r
       select(rodent_uid, genus, species, village, visit, grid) %>%
       mutate(genus = str_to_sentence(genus)) %>%
       left_join(distance, by = c("genus" = "Genus", "species" = "Species")) %>%
-      mutate(across(ends_with("radius"), 
+      mutate(across(ends_with("radius"),
                     ~ if_else(is.na(.x),
-                              # Replace missing values by joining genus-level median values
                               rodent_home_range_radii[[cur_column()]][match(genus, rodent_home_range_radii$Genus)],
                               .x))) %>%
-      # set those without speces or genus level data to 17m
-      mutate(median_range_radius = case_when(is.na(median_range_radius) ~ units::as_units(17, "meters"),
+      # set those without species or genus level data to 17m
+      mutate(median_range_radius = case_when(species == "Malacomys edwardsi" ~ units::as_units(35, "meters"), #based on home range 4,000m2
+                                             species == "Gerbilliscus guineae" ~ units::as_units(22, "meters"), #based on home range 1,500m2
+                                             species == "Hybomys planifrons" ~ units::as_units(22, "meters"), #based on home range 2,000m2
+                                             species == "Dasymys rufulus" ~ units::as_units(11, "meters"), #based on median of all
                                              TRUE ~  median_range_radius)) %>%
       mutate(buffered_area = st_buffer(geometry, dist = median_range_radius)) %>%
       group_by(rodent_uid) %>%
@@ -366,7 +368,7 @@ if(file.exists(here("data", "processed_data", "expanded_assemblages_2025-06-04.r
     
   }
   
-  write_rds(expanded_assemblages, here("data", "processed_data", "expanded_assemblages_2025-06-04.rds"))
+  write_rds(expanded_assemblages, here("data", "processed_data", "expanded_assemblages_2025-10-16.rds"))
   
 }
 
@@ -437,7 +439,7 @@ final_model <- list(final_model = rodent_models_summary$homophily,
 # Save models -------------------------------------------------------------
 # The final model has been made available in an OSF repository
 
-write_rds(rodent_network, here("data", "temp", "rodent_networks_2025-06-05.rds"))
-write_rds(rodent_models, here("data", "temp", "rodent_models_2025-06-05.rds"))
-write_rds(rodent_models_summary, here("data", "temp", "rodent_models_summary_2025-06-05.rds"))
-write_rds(final_model, here("data", "temp", "final_model_2025-06-05.rds"))
+write_rds(rodent_network, here("data", "temp", "rodent_networks_2025-10-16.rds"))
+write_rds(rodent_models, here("data", "temp", "rodent_models_2025-10-16.rds"))
+write_rds(rodent_models_summary, here("data", "temp", "rodent_models_summary_2025-10-16.rds"))
+write_rds(final_model, here("data", "temp", "final_model_2025-10-16.rds"))
